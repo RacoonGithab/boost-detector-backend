@@ -54,9 +54,16 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     await this.redisClient.zremrangebyscore(key, min, max);
   }
 
-  async zscore(key: string, member: string): Promise<number | null> {
-    const score = await this.redisClient.zscore(key, member);
-    return score ? parseFloat(score) : null;
+  async zrevrange(key: string, start: number, stop: number): Promise<string[]> {
+    return this.redisClient.zrevrange(key, start, stop);
+  }
+
+  async zrange(key: string, start: number, stop: number): Promise<string[]> {
+    return this.redisClient.zrange(key, start, stop);
+  }
+
+  async keys(pattern: string): Promise<string[]> {
+    return this.redisClient.keys(pattern);
   }
 
   async expire(key: string, seconds: number): Promise<void> {

@@ -4,7 +4,7 @@ export class BybitRest {
   private readonly baseUrl = 'https://api.bybit.com';
   private readonly http: AxiosInstance;
   private cache: { ts: number; symbols: string[] } | null = null;
-  private readonly cacheTtlMs = 5 * 60 * 1000; // 5 минут
+  private readonly cacheTtlMs = 5 * 60 * 1000;
 
   constructor() {
     this.http = axios.create({
@@ -32,20 +32,16 @@ export class BybitRest {
         const list = body.result?.list || [];
         for (const item of list) {
           if (!item || !item.symbol) continue;
-          // фильтр по quoteCoin (USDT / USDC) и статус Trading
           if ((item.quoteCoin === quoteCoin) && (item.status === 'Trading')) {
             all.push(item.symbol);
           }
         }
         cursor = body.result?.nextPageCursor || undefined;
       } while (cursor);
-      // убрать дубликаты
       const uniq = Array.from(new Set(all));
-      // сохранить в кэш
       this.cache = { ts: Date.now(), symbols: uniq };
       return uniq;
     } catch (err) {
-      // если кэша нет — пробрасываем ошибку, иначе возвращаем старый кэш
       if (this.cache && this.cache.symbols.length) {
         return this.cache.symbols;
       }
@@ -53,7 +49,6 @@ export class BybitRest {
     }
   }
 
-  /** Сбросить кэш вручную (если нужно) */
   clearCache() {
     this.cache = null;
   }
