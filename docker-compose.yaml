@@ -1,0 +1,59 @@
+services:
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - pump-scanner
+
+  hasura:
+    image: hasura/graphql-engine:v2.15.2
+    container_name: hasura
+    ports:
+      - "8080:8080"
+    environment:
+      - HASURA_GRAPHQL_DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
+      - HASURA_GRAPHQL_ADMIN_SECRET=${HASURA_GRAPHQL_ADMIN_SECRET}
+      - HASURA_GRAPHQL_ENABLE_CONSOLE=${HASURA_GRAPHQL_ENABLE_CONSOLE}
+    depends_on:
+      - postgres
+    networks:
+      - pump-scanner
+    restart: on-failure
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - pump-scanner
+    restart: unless-stopped
+
+  redis-insight:
+    image: redis/redisinsight:latest
+    container_name: redis-insight
+    restart: unless-stopped
+    ports:
+      - "5540:5540"
+    environment:
+      REDIS_INSIGHT_HOST: "0.0.0.0"
+    depends_on:
+      - redis
+    networks:
+      - pump-scanner
+
+volumes:
+  postgres_data:
+
+networks:
+  pump-scanner:

@@ -2,10 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { BybitRest } from './bybit.rest';
 import { BybitWsManager } from './bybit.ws.manager';
-import { ExchangeClient } from '../interface/exchange-client.interface';
+import { ExchangeClient } from '../../interface/exchange-client.interface';
 
 @Injectable()
 export class BybitClient implements ExchangeClient {
+  id = 'bybit';
   private readonly logger = new Logger(BybitClient.name);
 
   public readonly rest: BybitRest;

@@ -21,6 +21,7 @@ export class MarketDataService implements OnModuleInit {
         if (msg.topic?.startsWith('tickers.') && msg.data?.symbol) {
           const d = msg.data;
           const tickerData = {
+            exchange: client.id,
             symbol: d.symbol,
             bid1Price: parseFloat(d.bid1Price || '0'),
             bid1Size: parseFloat(d.bid1Size || '0'),
@@ -28,7 +29,10 @@ export class MarketDataService implements OnModuleInit {
             ask1Size: parseFloat(d.ask1Size || '0'),
             timestamp: msg.ts,
           };
-          await this.redisService.set(tickerData.symbol, JSON.stringify(tickerData), 60);
+          const key = `${client.id}:${tickerData.symbol}`;
+          try {
+            await this.redisService.set(key, JSON.stringify(tickerData), 60);
+          } catch (error) { /* empty */ }
         }
       });
     }

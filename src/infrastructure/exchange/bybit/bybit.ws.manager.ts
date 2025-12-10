@@ -1,6 +1,7 @@
+import { OnModuleDestroy } from '@nestjs/common';
 import WebSocket from 'ws';
 
-export class BybitWsManager {
+export class BybitWsManager implements OnModuleDestroy {
   private tickerWS: WebSocket;
   private detailWS: WebSocket;
   public onTickerMessage?: (msg: any) => void;
@@ -13,6 +14,15 @@ export class BybitWsManager {
       const msg = JSON.parse(data.toString());
       this.onTickerMessage?.(msg);
     });
+  }
+
+  onModuleDestroy() {
+    if (this.tickerWS?.readyState === WebSocket.OPEN) {
+      this.tickerWS.close();
+    }
+    if (this.detailWS?.readyState === WebSocket.OPEN) {
+      this.detailWS.close();
+    }
   }
 
   subscribeTickers(symbols: string[]) {

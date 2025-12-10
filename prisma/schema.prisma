@@ -1,0 +1,40 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model PumpEvent {
+  id           String   @id @default(uuid())
+  symbol       String
+  pumpScore    Decimal  @map("pump_score") @db.Decimal(5, 3)
+  metrics      Json
+  alertSent    Boolean  @default(false) @map("alert_sent")
+  timestamp    DateTime @default(now())
+  actualProfit Decimal? @map("actual_profit") @db.Decimal(10, 4)
+
+  @@unique([symbol, timestamp])
+  @@index([symbol, timestamp])
+  @@map("pump_events")
+}
+
+model ActiveSubscription {
+  id        String   @id @default(uuid())
+  symbol    String   @unique
+  connId    String   @map("conn_id")
+  startedAt DateTime @default(now()) @map("started_at")
+  expiresAt DateTime @map("expires_at")
+  score     Decimal  @db.Decimal(5, 3)
+
+  @@index([expiresAt])
+  @@map("active_subscriptions")
+}
