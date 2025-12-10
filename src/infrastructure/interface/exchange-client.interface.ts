@@ -1,6 +1,11 @@
 export interface ExchangeClient {
   id: string;
+
   getSymbols(): Promise<string[]>;
-  subscribeTicker(symbols: string[], onMessage: (msg: any) => void): void;
-  subscribeDetail(symbol: string, onMessage?: (msg: any) => void): void;
+
+  subscribeTickers(symbols: string[], onMessage: (msg: any) => void): void;
+
+  subscribeTrades(symbols: string[], onMessage: (msg: any) => void): void;
+
+  subscribeOrderbooks(symbols: string[], onMessage: (msg: any) => void): void;
 }

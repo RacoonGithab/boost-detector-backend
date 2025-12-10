@@ -1,62 +1,90 @@
-import { OnModuleDestroy } from '@nestjs/common';
 import WebSocket from 'ws';
 
-export class BybitWsManager implements OnModuleDestroy {
-  private tickerWS: WebSocket;
-  private detailWS: WebSocket;
-  public onTickerMessage?: (msg: any) => void;
+type SubType = 'tickers' | 'trades' | 'orderbooks';
 
-  constructor() {
-    this.tickerWS = new WebSocket('wss://stream.bybit.com/v5/public/linear');
-    this.detailWS = new WebSocket('wss://stream.bybit.com/v5/public/linear');
+export class BybitWsManager {
+  private wsLists: Record<SubType, WebSocket[]> = {
+    tickers: [],
+    trades: [],
+    orderbooks: []
+  };
 
-    this.tickerWS.on('message', (data) => {
-      const msg = JSON.parse(data.toString());
-      this.onTickerMessage?.(msg);
+  private readonly CHUNK_SIZE: Record<SubType, number> = {
+    tickers: 100,
+    trades: 80,
+    orderbooks: 50
+  };
+
+  private readonly WS_URL = 'wss://stream.bybit.com/v5/public/linear';
+
+  public onTicker?: (msg: any) => void;
+  public onTrade?: (msg: any) => void;
+  public onOrderbook?: (msg: any) => void;
+
+  subscribeTickers(symbols: string[]) {
+    this.createChunkedWS('tickers', symbols, this.onTicker);
+  }
+
+  subscribeTrades(symbols: string[]) {
+    this.createChunkedWS('trades', symbols, this.onTrade);
+  }
+
+  subscribeOrderbooks(symbols: string[]) {
+    this.createChunkedWS('orderbooks', symbols, this.onOrderbook);
+  }
+
+  private createChunkedWS(type: SubType, symbols: string[], onMsg?: (msg: any) => void) {
+    const chunkSize = this.CHUNK_SIZE[type];
+    const chunks = this.toChunks(symbols, chunkSize);
+    const wsList = this.wsLists[type];
+
+    chunks.forEach(chunk => {
+      const ws = new WebSocket(this.WS_URL);
+
+      ws.on('open', () => {
+        ws.send(JSON.stringify(this.buildSubPayload(type, chunk)));
+        this.startPing(ws);
+      });
+
+      ws.on('message', (data) => {
+        const msg = JSON.parse(data.toString());
+        onMsg?.(msg);
+      });
+
+      ws.on('close', () => setTimeout(() => this.reconnect(ws, type, chunk, onMsg), 1000));
+      ws.on('error', () => ws.close());
+
+      wsList.push(ws);
     });
   }
 
-  onModuleDestroy() {
-    if (this.tickerWS?.readyState === WebSocket.OPEN) {
-      this.tickerWS.close();
-    }
-    if (this.detailWS?.readyState === WebSocket.OPEN) {
-      this.detailWS.close();
-    }
+  private reconnect(ws: WebSocket, type: SubType, chunk: string[], onMsg?: (msg: any) => void) {
+    const wsList = this.wsLists[type];
+    const index = wsList.indexOf(ws);
+    if (index !== -1) wsList.splice(index, 1);
+    this.createChunkedWS(type, chunk, onMsg);
   }
 
-  subscribeTickers(symbols: string[]) {
-    if (this.tickerWS.readyState === WebSocket.OPEN) {
-      this.sendTickers(symbols);
-    } else {
-      this.tickerWS.on('open', () => {
-        this.sendTickers(symbols);
-      });
-    }
-  }
-
-  private sendTickers(symbols: string[]) {
-    const args = symbols.map(s => `tickers.${s}`);
-    this.tickerWS.send(JSON.stringify({ op: "subscribe", args }));
-  }
-
-  subscribeDetail(symbol: string) {
-    if (this.detailWS.readyState === WebSocket.OPEN) {
-      this.sendDetail(symbol);
-    } else {
-      this.detailWS.on('open', () => {
-        this.sendDetail(symbol);
-      });
+  private buildSubPayload(type: SubType, chunk: string[]) {
+    switch (type) {
+      case 'tickers':
+        return { op: 'subscribe', args: chunk.map(s => `tickers.${s}`) };
+      case 'trades':
+        return { op: 'subscribe', args: chunk.map(s => `publicTrade.${s}`) };
+      case 'orderbooks':
+        return { op: 'subscribe', args: chunk.map(s => `orderbook.50.${s}`) };
     }
   }
 
-  private sendDetail(symbol: string) {
-    this.detailWS.send(JSON.stringify({
-      op: "subscribe",
-      args: [
-        `publicTrade.${symbol}`,
-        `orderbook.50.${symbol}`
-      ]
-    }));
+  private startPing(ws: WebSocket) {
+    setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ op: 'ping' }));
+    }, 20000);
+  }
+
+  private toChunks(arr: string[], size: number): string[][] {
+    const out: string[][] = [];
+    for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+    return out;
   }
 }

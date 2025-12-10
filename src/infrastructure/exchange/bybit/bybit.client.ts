@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-
 import { BybitRest } from './bybit.rest';
 import { BybitWsManager } from './bybit.ws.manager';
 import { ExchangeClient } from '../../interface/exchange-client.interface';
@@ -18,17 +17,21 @@ export class BybitClient implements ExchangeClient {
   }
 
   async getSymbols(): Promise<string[]> {
-    return this.rest.getUSDCFuturesSymbols();
+    return this.rest.getSymbols();
   }
 
-  /** Подписка на тикеры */
-  subscribeTicker(symbols: string[], onMessage: (_: any) => void) {
-    this.ws.onTickerMessage = onMessage;
+  subscribeTickers(symbols: string[], onMessage: (msg: any) => void) {
+    this.ws.onTicker = onMessage;
     this.ws.subscribeTickers(symbols);
   }
 
-  /** Подписка на сделки и стакан */
-  subscribeDetail(symbol: string) {
-    this.ws.subscribeDetail(symbol);
+  subscribeTrades(symbols: string[], onMessage: (msg: any) => void) {
+    this.ws.onTrade = onMessage;
+    this.ws.subscribeTrades(symbols);
+  }
+
+  subscribeOrderbooks(symbols: string[], onMessage: (msg: any) => void) {
+    this.ws.onOrderbook = onMessage;
+    this.ws.subscribeOrderbooks(symbols);
   }
 }
